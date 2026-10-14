@@ -1,8 +1,18 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+val releaseKeystorePropertiesFile = rootProject.file("signing/keystore.properties")
+val releaseKeystoreProperties = Properties().apply {
+    if (releaseKeystorePropertiesFile.exists()) {
+        load(FileInputStream(releaseKeystorePropertiesFile))
+    }
 }
 
 android {
@@ -18,13 +28,29 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val storeFilePath = releaseKeystoreProperties.getProperty("storeFile")
+                ?: error("Missing signing/keystore.properties (see signing/README.md)")
+            storeFile = rootProject.file(storeFilePath)
+            storePassword = releaseKeystoreProperties.getProperty("storePassword")
+            keyAlias = releaseKeystoreProperties.getProperty("keyAlias")
+            keyPassword = releaseKeystoreProperties.getProperty("keyPassword")
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+        }
+        debug {
+            // Same certificate as release so stick updates work for CI/local debug builds too.
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

@@ -15,13 +15,22 @@ Lightweight **Android TV** client for **Xtream Codes** movie and series librarie
 - Category lists load when you open Movies or Series; **titles load only when you open a category**
 - Play sends an `ACTION_VIEW` intent to VLC with the standard Xtream stream URL
 
-## Build
+## Download APK (every push / PR)
+
+GitHub Actions builds a **release APK signed with the project keystore** on each push and pull request.
+
+1. Open the repo **Actions** tab → latest **Build signed APK** run.
+2. Download the **`xtream-vod-signed-apk`** artifact (`app-release.apk`).
+
+That APK always uses the same certificate ([`signing/xtream-vod-release.keystore`](signing/xtream-vod-release.keystore)), so you can update on the stick with `adb install -r` without uninstalling.
+
+## Build locally
 
 ```bash
-./gradlew :app:assembleDebug
+./gradlew :app:assembleRelease
 ```
 
-APK output: `app/build/outputs/apk/debug/app-debug.apk`
+APK output: `app/build/outputs/apk/release/app-release.apk` (same signing config as CI).
 
 Set `sdk.dir` in `local.properties` if the Android SDK is not detected automatically.
 
@@ -32,7 +41,7 @@ Set `sdk.dir` in `local.properties` if the Android SDK is not detected automatic
 
 ```bash
 adb connect <fire-tv-ip>:5555
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app-release.apk
 ```
 
 3. Open **Xtream VOD** from the TV app row, connect your account, and pick a title to play in VLC.
