@@ -1,0 +1,64 @@
+package app.xtreamvod.ui.categories
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
+import app.xtreamvod.data.XtreamRepository
+import app.xtreamvod.data.xtream.CategoryDto
+import app.xtreamvod.navigation.ContentKind
+import app.xtreamvod.ui.components.ErrorState
+import app.xtreamvod.ui.components.LoadingState
+import app.xtreamvod.ui.components.TvFocusableCard
+import app.xtreamvod.ui.components.TvScreenScaffold
+import app.xtreamvod.ui.main.contentKindTitle
+
+@Composable
+fun CategoryListScreen(
+    kind: String,
+    repository: XtreamRepository,
+    onCategorySelected: (CategoryDto) -> Unit,
+) {
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var categories by remember { mutableStateOf<List<CategoryDto>>(emptyList()) }
+    var retryToken by remember { mutableStateOf(0) }
+
+    LaunchedEffect(kind, retryToken) {
+        loading = true
+        error = null
+        try {
+            categories = when (kind) {
+                ContentKind.MOVIES -> repository.fetchVodCategories()
+                ContentKind.SERIES -> repository.fetchSeriesCategories()
+                else -> emptyList()
+            }
+            loading = false
+        } catch (e: Exception) {
+            error = e.message
+            loading = false
+        }
+    }
+
+    TvScreenScaffold(title = "${contentKindTitle(kind)} — Categories") {
+        when {
+            loading -> LoadingState()
+            error != null -> ErrorState(error!!, onRetry = { retryToken++ })
+            categories.isEmpty() -> ErrorState("No categories found.")
+            else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(categories, key = { it.categoryId }) { category ->
+                    TvFocusableCard(
+                        title = category.categoryName,
+                        onClick = { onCategorySelected(category) },
+                    )
+                }
+            }
+        }
+    }
+}
