@@ -15,14 +15,11 @@ Lightweight **Android TV** client for **Xtream Codes** movie and series librarie
 - Category lists load when you open Movies or Series; **titles load only when you open a category**
 - Play sends an `ACTION_VIEW` intent to VLC with the standard Xtream stream URL
 
-## Download APK (every push / PR)
+## Download APK
 
-GitHub Actions builds a **release APK signed with the project keystore** on each push and pull request.
+The latest **signed release** build is committed at [`releases/xtream-vod-release.apk`](releases/xtream-vod-release.apk). Every build uses the same certificate ([`signing/xtream-vod-release.keystore`](signing/xtream-vod-release.keystore)), so you can update on the stick with `adb install -r` without uninstalling.
 
-1. Open the repo **Actions** tab → latest **Build signed APK** run.
-2. Download the **`xtream-vod-signed-apk`** artifact (`app-release.apk`).
-
-That APK always uses the same certificate ([`signing/xtream-vod-release.keystore`](signing/xtream-vod-release.keystore)), so you can update on the stick with `adb install -r` without uninstalling.
+GitHub Actions also runs **Build signed APK** on push/PR (artifact backup).
 
 ## Build locally
 
