@@ -3,6 +3,7 @@ package app.xtreamvod.data.xtream
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 
 @Serializable
 data class PlayerApiResponse(
@@ -41,12 +42,16 @@ data class VodStreamDto(
 
 @Serializable
 data class SeriesStreamDto(
+    @Serializable(with = FlexibleNullableIntSerializer::class)
     val num: Int? = null,
     val name: String? = null,
-    @SerialName("series_id") val seriesId: Int,
+    @SerialName("series_id")
+    @Serializable(with = FlexibleIntSerializer::class)
+    val seriesId: Int,
     @SerialName("cover") val cover: String? = null,
     @SerialName("stream_icon") val streamIcon: String? = null,
-    val rating: String? = null,
+    @SerialName("rating") val rating: JsonPrimitive? = null,
+    @SerialName("rating_5based") val rating5Based: JsonPrimitive? = null,
 )
 
 @Serializable

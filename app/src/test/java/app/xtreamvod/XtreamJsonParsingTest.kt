@@ -37,4 +37,15 @@ class XtreamJsonParsingTest {
         assertEquals("mkv", list[0].containerExtension)
         assertTrue(list[0].name == "Film")
     }
+
+    @Test
+    fun parsesSeriesStreamsWithStringIdsAndNumericRating() {
+        val body = """
+            [{"num":"1","name":"Show","series_id":"98765","cover":"http://img","rating":7.5}]
+        """.trimIndent()
+        val list = json.decodeFromString<List<app.xtreamvod.data.xtream.SeriesStreamDto>>(body)
+        assertEquals(1, list.size)
+        assertEquals(98765, list[0].seriesId)
+        assertEquals("Show", list[0].name)
+    }
 }

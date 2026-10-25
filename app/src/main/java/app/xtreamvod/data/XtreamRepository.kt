@@ -10,9 +10,11 @@ import app.xtreamvod.data.xtream.VodInfoResponse
 import app.xtreamvod.data.xtream.VodStreamDto
 import app.xtreamvod.data.xtream.XtreamApi
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -31,7 +33,7 @@ class XtreamRepository(
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(180, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
@@ -111,8 +113,8 @@ class XtreamRepository(
         json.decodeFromString<List<CategoryDto>>(body)
     }.getOrElse { throw mapError(it) }
 
-    suspend fun fetchVodStreams(categoryId: String): List<VodStreamDto> {
-        vodStreamsCache[categoryId]?.let { return it }
+    suspend fun fetchVodStreams(categoryId: String): List<VodStreamDto> = withContext(Dispatchers.IO) {
+        vodStreamsCache[categoryId]?.let { return@withContext it }
         val creds = credentials()
         val body = api().playerApi(
             creds.username,
@@ -122,7 +124,7 @@ class XtreamRepository(
         ).requireBody()
         val list = json.decodeFromString<List<VodStreamDto>>(body)
         vodStreamsCache[categoryId] = list
-        return list
+        list
     }
 
     suspend fun fetchVodInfo(vodId: Int): VodInfoResponse {
@@ -146,18 +148,39 @@ class XtreamRepository(
         json.decodeFromString<List<CategoryDto>>(body)
     }.getOrElse { throw mapError(it) }
 
-    suspend fun fetchSeriesStreams(categoryId: String): List<SeriesStreamDto> {
-        seriesStreamsCache[categoryId]?.let { return it }
-        val creds = credentials()
-        val body = api().playerApi(
-            creds.username,
-            creds.password,
-            action = "get_series",
-            categoryId = categoryId,
-        ).requireBody()
-        val list = json.decodeFromString<List<SeriesStreamDto>>(body)
-        seriesStreamsCache[categoryId] = list
-        return list
+    suspend fun fetchSeriesStreams(categoryId: String): List<SeriesStreamDto> = withContext(Dispatchers.IO) {
+        try {
+            seriesStreamsCache[categoryId]?.let { return@withContext it }
+            val creds = credentials()
+            val body = api().playerApi(
+                creds.username,
+                creds.password,
+                action = "get_series",
+                categoryId = categoryId,
+            ).requireBody()
+            val list = decodeSeriesList(body).filter { it.seriesId != 0 }
+            seriesStreamsCache[categoryId] = list
+            list
+        } catch (e: Exception) {
+            throw mapError(e)
+        }
+    }
+
+    private fun decodeSeriesList(body: String): List<SeriesStreamDto> {
+        val trimmed = body.trim()
+        if (trimmed.isEmpty() || trimmed == "[]") {
+            return emptyList()
+        }
+        return try {
+            json.decodeFromString<List<SeriesStreamDto>>(trimmed)
+        } catch (first: kotlinx.serialization.SerializationException) {
+            // Some panels wrap the list or return a single object for tiny categories.
+            try {
+                listOf(json.decodeFromString<SeriesStreamDto>(trimmed))
+            } catch (_: kotlinx.serialization.SerializationException) {
+                throw first
+            }
+        }
     }
 
     suspend fun fetchSeriesInfo(seriesId: Int): SeriesInfoResponse {
@@ -199,7 +222,10 @@ class XtreamRepository(
 
     private fun mapError(t: Throwable): Throwable {
         return when (t) {
-            is kotlinx.serialization.SerializationException -> IllegalStateException("Unexpected server response format", t)
+            is kotlinx.serialization.SerializationException ->
+                IllegalStateException("Could not read series list from provider. ${t.message}", t)
+            is java.net.SocketTimeoutException ->
+                IllegalStateException("Provider timed out loading this category. Try again.", t)
             else -> t
         }
     }

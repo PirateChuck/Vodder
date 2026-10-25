@@ -61,7 +61,7 @@ fun TitleGridScreen(
             }
             loading = false
         } catch (e: Exception) {
-            error = e.message
+            error = e.message ?: e.javaClass.simpleName
             loading = false
         }
     }
