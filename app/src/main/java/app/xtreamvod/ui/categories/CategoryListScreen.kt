@@ -13,7 +13,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import app.xtreamvod.data.XtreamRepository
 import app.xtreamvod.data.xtream.CategoryDto
-import app.xtreamvod.navigation.ContentKind
 import app.xtreamvod.ui.components.ErrorState
 import app.xtreamvod.ui.components.LoadingState
 import app.xtreamvod.ui.components.TvFocusableCard
