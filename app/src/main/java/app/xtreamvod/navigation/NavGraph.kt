@@ -19,8 +19,6 @@ import app.xtreamvod.ui.movie.MovieDetailScreen
 import app.xtreamvod.ui.series.SeriesDetailScreen
 import app.xtreamvod.ui.settings.SettingsScreen
 import app.xtreamvod.ui.setup.SetupScreen
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
 
 @Composable
 fun XtreamVodNavHost(repository: XtreamRepository) {
@@ -74,12 +72,8 @@ fun XtreamVodNavHost(repository: XtreamRepository) {
                 kind = kind,
                 repository = repository,
                 onCategorySelected = { category ->
-                    val encodedName = java.net.URLEncoder.encode(
-                        category.categoryName,
-                        StandardCharsets.UTF_8.name(),
-                    )
                     navController.navigate(
-                        Routes.grid(kind, category.categoryId, encodedName),
+                        Routes.grid(kind, category.categoryId, category.categoryName),
                     )
                 },
             )
@@ -94,7 +88,7 @@ fun XtreamVodNavHost(repository: XtreamRepository) {
         ) { entry ->
             val kind = entry.arguments?.getString("kind") ?: ContentKind.MOVIES
             val categoryId = entry.arguments?.getString("categoryId") ?: ""
-            val categoryName = decodeRouteArg(entry.arguments?.getString("categoryName") ?: "")
+            val categoryName = entry.arguments?.getString("categoryName") ?: ""
             TitleGridScreen(
                 kind = kind,
                 categoryId = categoryId,
@@ -120,6 +114,3 @@ fun XtreamVodNavHost(repository: XtreamRepository) {
         }
     }
 }
-
-private fun decodeRouteArg(value: String): String =
-    URLDecoder.decode(value, StandardCharsets.UTF_8.name())

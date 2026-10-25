@@ -50,6 +50,11 @@ fun TitleGridScreen(
     LaunchedEffect(kind, categoryId, retryToken) {
         loading = true
         error = null
+        if (categoryId.isBlank()) {
+            error = "Missing category id. Go back and try again."
+            loading = false
+            return@LaunchedEffect
+        }
         try {
             when (kind) {
                 ContentKind.MOVIES -> {
@@ -68,7 +73,13 @@ fun TitleGridScreen(
 
     TvScreenScaffold(title = categoryName) {
         when {
-            loading -> LoadingState()
+            loading -> LoadingState(
+                message = if (kind == ContentKind.SERIES) {
+                    "Loading series… This can take a minute for large categories."
+                } else {
+                    "Loading…"
+                },
+            )
             error != null -> ErrorState(error!!, onRetry = { retryToken++ })
             kind == ContentKind.MOVIES && movies.isEmpty() -> ErrorState("No titles in this category.")
             kind == ContentKind.SERIES && series.isEmpty() -> ErrorState("No titles in this category.")

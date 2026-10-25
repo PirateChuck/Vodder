@@ -5,6 +5,7 @@ import app.xtreamvod.data.xtream.EpisodeDto
 import app.xtreamvod.data.xtream.PlayerApiResponse
 import app.xtreamvod.data.xtream.SeriesInfoResponse
 import app.xtreamvod.data.xtream.SeriesStreamDto
+import app.xtreamvod.data.xtream.SeriesListParser
 import app.xtreamvod.data.xtream.StreamUrlBuilder
 import app.xtreamvod.data.xtream.VodInfoResponse
 import app.xtreamvod.data.xtream.VodStreamDto
@@ -14,7 +15,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -33,7 +36,7 @@ class XtreamRepository(
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(180, TimeUnit.SECONDS)
+        .readTimeout(300, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
@@ -150,36 +153,30 @@ class XtreamRepository(
 
     suspend fun fetchSeriesStreams(categoryId: String): List<SeriesStreamDto> = withContext(Dispatchers.IO) {
         try {
-            seriesStreamsCache[categoryId]?.let { return@withContext it }
-            val creds = credentials()
-            val body = api().playerApi(
-                creds.username,
-                creds.password,
-                action = "get_series",
-                categoryId = categoryId,
-            ).requireBody()
-            val list = decodeSeriesList(body).filter { it.seriesId != 0 }
-            seriesStreamsCache[categoryId] = list
-            list
+            val normalizedId = categoryId.trim()
+            if (normalizedId.isEmpty()) {
+                error("Missing category id. Go back and open the category again.")
+            }
+            seriesStreamsCache[normalizedId]?.let { return@withContext it }
+            withTimeout(240_000) {
+                val creds = credentials()
+                val response = api().playerApi(
+                    creds.username,
+                    creds.password,
+                    action = "get_series",
+                    categoryId = normalizedId,
+                )
+                if (!response.isSuccessful) {
+                    error("Server error: HTTP ${response.code()}")
+                }
+                val list = response.body()?.byteStream()?.use { stream ->
+                    SeriesListParser.parse(stream)
+                } ?: error("Empty response from server")
+                seriesStreamsCache[normalizedId] = list
+                list
+            }
         } catch (e: Exception) {
             throw mapError(e)
-        }
-    }
-
-    private fun decodeSeriesList(body: String): List<SeriesStreamDto> {
-        val trimmed = body.trim()
-        if (trimmed.isEmpty() || trimmed == "[]") {
-            return emptyList()
-        }
-        return try {
-            json.decodeFromString<List<SeriesStreamDto>>(trimmed)
-        } catch (first: kotlinx.serialization.SerializationException) {
-            // Some panels wrap the list or return a single object for tiny categories.
-            try {
-                listOf(json.decodeFromString<SeriesStreamDto>(trimmed))
-            } catch (_: kotlinx.serialization.SerializationException) {
-                throw first
-            }
         }
     }
 
@@ -226,6 +223,11 @@ class XtreamRepository(
                 IllegalStateException("Could not read series list from provider. ${t.message}", t)
             is java.net.SocketTimeoutException ->
                 IllegalStateException("Provider timed out loading this category. Try again.", t)
+            is TimeoutCancellationException ->
+                IllegalStateException(
+                    "This category is very large and took too long to load. Try again or use a faster connection.",
+                    t,
+                )
             else -> t
         }
     }
