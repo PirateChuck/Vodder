@@ -13,3 +13,4 @@
 !releases/*.apk
 *.ap_
 *.dex
+.kotlin/
