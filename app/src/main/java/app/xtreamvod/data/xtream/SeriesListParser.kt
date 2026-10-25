@@ -9,11 +9,15 @@ import java.io.InputStreamReader
  * Lightweight streaming parser for huge `get_series` category payloads (common on Fire TV).
  */
 object SeriesListParser {
-    fun parse(input: InputStream): List<SeriesStreamDto> {
+    fun parse(
+        input: InputStream,
+        onBatch: ((List<SeriesStreamDto>) -> Unit)? = null,
+        batchSize: Int = 48,
+    ): List<SeriesStreamDto> {
         val reader = JsonReader(InputStreamReader(input, Charsets.UTF_8))
         return when (reader.peek()) {
-            JsonToken.BEGIN_ARRAY -> parseArray(reader)
-            JsonToken.BEGIN_OBJECT -> listOf(parseObject(reader))
+            JsonToken.BEGIN_ARRAY -> parseArray(reader, onBatch, batchSize)
+            JsonToken.BEGIN_OBJECT -> listOf(parseObject(reader)).also { emitBatch(it, onBatch) }
             else -> {
                 reader.skipValue()
                 emptyList()
@@ -21,21 +25,40 @@ object SeriesListParser {
         }
     }
 
-    private fun parseArray(reader: JsonReader): List<SeriesStreamDto> {
+    private fun emitBatch(items: List<SeriesStreamDto>, onBatch: ((List<SeriesStreamDto>) -> Unit)?) {
+        if (items.isNotEmpty()) {
+            onBatch?.invoke(items)
+        }
+    }
+
+    private fun parseArray(
+        reader: JsonReader,
+        onBatch: ((List<SeriesStreamDto>) -> Unit)?,
+        batchSize: Int,
+    ): List<SeriesStreamDto> {
         reader.beginArray()
-        val out = ArrayList<SeriesStreamDto>(512)
+        val all = ArrayList<SeriesStreamDto>(512)
+        val batch = ArrayList<SeriesStreamDto>(batchSize)
         while (reader.hasNext()) {
             if (reader.peek() == JsonToken.BEGIN_OBJECT) {
                 val item = parseObject(reader)
                 if (item.seriesId != 0) {
-                    out.add(item)
+                    all.add(item)
+                    batch.add(item)
+                    if (batch.size >= batchSize) {
+                        onBatch?.invoke(batch.toList())
+                        batch.clear()
+                    }
                 }
             } else {
                 reader.skipValue()
             }
         }
         reader.endArray()
-        return out
+        if (batch.isNotEmpty()) {
+            onBatch?.invoke(batch.toList())
+        }
+        return all
     }
 
     private fun parseObject(reader: JsonReader): SeriesStreamDto {

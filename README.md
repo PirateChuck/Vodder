@@ -13,6 +13,7 @@ Lightweight **Android TV** client for **Xtream Codes** movie and series librarie
 - Sign in with Xtream `player_api.php` credentials (stored in app-private DataStore)
 - **Movies** and **series** only (no live TV or catch-up)
 - Category lists load when you open Movies or Series; **titles load only when you open a category**
+- **Why categories can feel slow the first time:** Xtream’s `get_series` / `get_vod_streams` responses include full metadata for every title in that category (often megabytes over the network). The app keeps a **trimmed on-device cache** so reopening the same category is much faster.
 - Play sends an `ACTION_VIEW` intent to VLC with the standard Xtream stream URL
 
 ## Download APK
