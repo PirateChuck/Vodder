@@ -28,6 +28,9 @@ data class ServerInfo(
 data class CategoryDto(
     @SerialName("category_id") val categoryId: String,
     @SerialName("category_name") val categoryName: String,
+    @SerialName("parent_id")
+    @Serializable(with = FlexibleIntSerializer::class)
+    val parentId: Int = 0,
 )
 
 @Serializable

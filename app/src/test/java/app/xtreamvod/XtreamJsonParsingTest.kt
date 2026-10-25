@@ -23,10 +23,18 @@ class XtreamJsonParsingTest {
 
     @Test
     fun parsesCategories() {
-        val body = """[{"category_id":"1","category_name":"Action"}]"""
+        val body = """[{"category_id":"1","category_name":"Action","parent_id":"0"}]"""
         val list = json.decodeFromString<List<CategoryDto>>(body)
         assertEquals(1, list.size)
         assertEquals("Action", list[0].categoryName)
+        assertEquals(0, list[0].parentId)
+    }
+
+    @Test
+    fun parsesNestedCategoryParentId() {
+        val body = """[{"category_id":"101","category_name":"Drama","parent_id":10}]"""
+        val list = json.decodeFromString<List<CategoryDto>>(body)
+        assertEquals(10, list[0].parentId)
     }
 
     @Test

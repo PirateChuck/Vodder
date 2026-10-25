@@ -1,11 +1,13 @@
 package app.xtreamvod.data
 
 import app.xtreamvod.data.xtream.CategoryDto
+import app.xtreamvod.data.xtream.CategoryTree
 import app.xtreamvod.data.xtream.EpisodeDto
 import app.xtreamvod.data.xtream.PlayerApiResponse
 import app.xtreamvod.data.xtream.SeriesInfoResponse
 import app.xtreamvod.data.xtream.SeriesStreamDto
 import app.xtreamvod.data.cache.CategoryListingCache
+import app.xtreamvod.navigation.ContentKind
 import app.xtreamvod.data.xtream.SeriesListParser
 import app.xtreamvod.data.xtream.StreamUrlBuilder
 import app.xtreamvod.data.xtream.VodInfoResponse
@@ -51,6 +53,8 @@ class XtreamRepository(
 
     private val vodStreamsCache = ConcurrentHashMap<String, List<VodStreamDto>>()
     private val seriesStreamsCache = ConcurrentHashMap<String, List<SeriesStreamDto>>()
+    private var vodCategoriesAll: List<CategoryDto>? = null
+    private var seriesCategoriesAll: List<CategoryDto>? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
     suspend fun getStoredCredentials(): XtreamCredentials? =
@@ -83,6 +87,8 @@ class XtreamRepository(
     private suspend fun resetCaches() {
         vodStreamsCache.clear()
         seriesStreamsCache.clear()
+        vodCategoriesAll = null
+        seriesCategoriesAll = null
         categoryCache.clear()
     }
 
@@ -122,6 +128,24 @@ class XtreamRepository(
         ).requireBody()
         json.decodeFromString<List<CategoryDto>>(body)
     }.getOrElse { throw mapError(it) }
+
+    suspend fun categoriesAt(kind: String, parentId: String): List<CategoryDto> {
+        val all = when (kind) {
+            ContentKind.MOVIES -> vodCategoriesAll ?: fetchVodCategories().also { vodCategoriesAll = it }
+            ContentKind.SERIES -> seriesCategoriesAll ?: fetchSeriesCategories().also { seriesCategoriesAll = it }
+            else -> emptyList()
+        }
+        return CategoryTree.categoriesForParent(all, parentId)
+    }
+
+    suspend fun isCategoryFolder(kind: String, category: CategoryDto): Boolean {
+        val all = when (kind) {
+            ContentKind.MOVIES -> vodCategoriesAll ?: fetchVodCategories().also { vodCategoriesAll = it }
+            ContentKind.SERIES -> seriesCategoriesAll ?: fetchSeriesCategories().also { seriesCategoriesAll = it }
+            else -> return false
+        }
+        return CategoryTree.isFolder(all, category)
+    }
 
     suspend fun loadVodGrid(
         categoryId: String,

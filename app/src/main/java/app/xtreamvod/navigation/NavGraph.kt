@@ -65,13 +65,30 @@ fun XtreamVodNavHost(repository: XtreamRepository) {
         }
         composable(
             route = Routes.CATEGORIES,
-            arguments = listOf(navArgument("kind") { type = NavType.StringType }),
+            arguments = listOf(
+                navArgument("kind") { type = NavType.StringType },
+                navArgument("parentId") { type = NavType.StringType },
+                navArgument("folderName") { type = NavType.StringType },
+            ),
         ) { entry ->
             val kind = entry.arguments?.getString("kind") ?: ContentKind.MOVIES
+            val parentId = entry.arguments?.getString("parentId") ?: "0"
+            val folderName = entry.arguments?.getString("folderName") ?: ""
             CategoryListScreen(
                 kind = kind,
+                parentId = parentId,
+                folderName = folderName,
                 repository = repository,
-                onCategorySelected = { category ->
+                onOpenFolder = { category ->
+                    navController.navigate(
+                        Routes.categories(
+                            kind = kind,
+                            parentId = category.categoryId,
+                            folderName = category.categoryName,
+                        ),
+                    )
+                },
+                onOpenTitles = { category ->
                     navController.navigate(
                         Routes.grid(kind, category.categoryId, category.categoryName),
                     )
